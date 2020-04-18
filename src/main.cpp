@@ -38,6 +38,9 @@ void initJoyStick();
 String status2Code(int statusCode);
 int joyStickDecode();
 String mode2Str(int mode);
+boolean isHitBorder(struct gameController *over);
+void updateBoxPosition(struct snake *box);
+void updatePlayerDirection(struct snake *direction);
 
 enum joyStick
 {
@@ -99,6 +102,13 @@ struct border
   struct coordination topLeft;
   struct coordination bottomRight;
 };
+struct hitBox
+{
+  boolean top;
+  boolean bottom;
+  boolean left;
+  boolean right;
+};
 
 struct gameController
 {
@@ -106,6 +116,7 @@ struct gameController
   uint16_t backgroundColor;
   boolean isDrawnBorder;
   struct border mapBorder;
+  struct hitBox isHit;
 };
 
 TFT_22_ILI9225 tft = TFT_22_ILI9225(TFT_RST, TFT_RS, TFT_CS, TFT_SDI, TFT_CLK, TFT_LED, TFT_BRIGHTNESS);
@@ -198,62 +209,17 @@ void loop()
     //Add Head Postion
     tft.fillRectangle(player.head.topLeft.x, player.head.topLeft.y, player.head.bottomRight.x, player.head.bottomRight.y, player.color);
 
-
-    player.moveDirection = joyStickDecode();
-    if (player.moveDirection == stable)
-    {
-      player.moveDirection = player.lastMoveDirection;
-    }
-    else
-    {
-      player.lastMoveDirection = player.moveDirection;
-    }
-
     // Update Tail Postion
     player.tailCenter.x = player.center.x;
     player.tailCenter.y = player.center.y;
 
     //Update Snake Direction
-    switch (player.moveDirection)
-    {
-    case up:
-      player.center.y -= player.OneMoveDistance;
-      break;
-    case down:
-      player.center.y += player.OneMoveDistance;
-      break;
-    case left:
-      player.center.x -= player.OneMoveDistance;
-      break;
-    case right:
-      player.center.x += player.OneMoveDistance;
-      break;
-    default:
-      break;
-    }
-
-    //Update Tail Position
-    player.tail.topLeft.x = player.tailCenter.x - player.radius;
-    player.tail.topLeft.y = player.tailCenter.y - player.radius;
-    player.tail.bottomRight.x = player.tailCenter.x + player.radius;
-    player.tail.bottomRight.y = player.tailCenter.y + player.radius;
-
-    //Update Head Position;
-    player.head.topLeft.x = player.center.x - player.radius;
-    player.head.topLeft.y = player.center.y - player.radius;
-    player.head.bottomRight.x = player.center.x + player.radius;
-    player.head.bottomRight.y = player.center.y + player.radius;
-
+    updatePlayerDirection(&player);
+    //update Box Postion
+    updateBoxPosition(&player);
 
     //GameOver
-    boolean hitLeft = player.head.topLeft.x < game.mapBorder.topLeft.x;
-    boolean hitTop = player.head.topLeft.y < game.mapBorder.topLeft.y;
-    boolean hitRight = player.head.bottomRight.x > game.mapBorder.bottomRight.x;
-    boolean hitBottom = player.head.bottomRight.y > game.mapBorder.bottomRight.y;
-    if (hitLeft || hitRight || hitTop || hitBottom)
-    {
-      game.mode = gameOver;
-    }
+    game.mode = isHitBorder(&game) ? gameOver : game.mode;
 
     //Debug Zone
     printNewLine("[ " + mode2Str(game.mode) + " ] Move Direction : " + String(status2Code(player.moveDirection)) + " | Player Center   X : " + String(player.center.x) + " Y : " + String(player.center.y));
@@ -274,9 +240,59 @@ void loop()
   }
 }
 
+void updatePlayerDirection(struct snake *direction)
+{
 
+  direction->moveDirection = joyStickDecode();
+  if (direction->moveDirection == stable)
+  {
+    direction->moveDirection = direction->lastMoveDirection;
+  }
+  else
+  {
+    direction->lastMoveDirection = direction->moveDirection;
+  }
 
+  switch (direction->moveDirection)
+  {
+  case up:
+    direction->center.y -= direction->OneMoveDistance;
+    break;
+  case down:
+    direction->center.y += direction->OneMoveDistance;
+    break;
+  case left:
+    direction->center.x -= direction->OneMoveDistance;
+    break;
+  case right:
+    direction->center.x += direction->OneMoveDistance;
+    break;
+  default:
+    break;
+  }
+}
 
+boolean isHitBorder(struct gameController *over)
+{
+  boolean hitLeft = player.head.topLeft.x < game.mapBorder.topLeft.x;
+  boolean hitTop = player.head.topLeft.y < game.mapBorder.topLeft.y;
+  boolean hitRight = player.head.bottomRight.x > game.mapBorder.bottomRight.x;
+  boolean hitBottom = player.head.bottomRight.y > game.mapBorder.bottomRight.y;
+  return (hitLeft || hitRight || hitTop || hitBottom);
+}
+
+void updateBoxPosition(struct snake *box)
+{
+  box->tail.topLeft.x = box->tailCenter.x - box->radius;
+  box->tail.topLeft.y = box->tailCenter.y - box->radius;
+  box->tail.bottomRight.x = box->tailCenter.x + box->radius;
+  box->tail.bottomRight.y = box->tailCenter.y + box->radius;
+
+  box->head.topLeft.x = box->center.x - box->radius;
+  box->head.topLeft.y = box->center.y - box->radius;
+  box->head.bottomRight.x = box->center.x + box->radius;
+  box->head.bottomRight.y = box->center.y + box->radius;
+}
 
 String mode2Str(int mode)
 {
