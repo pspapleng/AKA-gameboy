@@ -1,7 +1,7 @@
 #include <Arduino.h>
 #include <SPI.h>
 #include <TFT_22_ILI9225.h>
-
+#include "TrueRandom.h"
 // Prototype Funcitons
 void initJoyStick();
 int joyStickDecode();
@@ -229,6 +229,7 @@ void loop()
     }
     case playGame:
     {
+        /*
         if (!gameEngine.isDrawBorder)
         {
             tft.drawRectangle(gameEngine.border.topLeft.X,
@@ -239,6 +240,7 @@ void loop()
 
             gameEngine.isDrawBorder = !gameEngine.isDrawBorder;
         }
+
         // Spawn Food
         if (!food.isSpawn)
         {
@@ -341,13 +343,19 @@ void loop()
         //                "  Right : " + String(collisionRight) +
         //                "  Top : " + String(collisionTop) +
         //                "  Bottom : " + String(collisionBottom));
-        if (gameEngine.isHitBarricade || gameEngine.isHitBorder)
+
+        if (
+            gameEngine.isHitBarricade ||
+            gameEngine.isHitBorder)
         {
             gameEngine.mode = gameOver;
         }
 
         if (gameEngine.isHitItem)
         {
+            PRINT_NEW_LINE("HIT ITEM");
+
+
             gameEngine.score += food.score;
 
             food.body.center.X = straightWall.body.center.X;
@@ -360,6 +368,59 @@ void loop()
                               gameEngine.backgroundColor);
 
             // Update Tail Position
+            player_t *newTail = head;
+            while (newTail->next != NULL)
+            {
+                newTail = newTail->next;
+            }
+
+            newTail->next = (player_t *)malloc(sizeof(player_t));
+            newTail->next->body.center.X = newTail->body.center.X;
+            newTail->next->body.center.Y = newTail->body.center.Y;
+            switch (newTail->direction)
+            {
+            case up:
+            {
+                newTail->next->body.center.Y = newTail->body.center.Y - gameEngine.gridSize;
+                break;
+            };
+            case down:
+            {
+                newTail->next->body.center.Y = newTail->body.center.Y + gameEngine.gridSize;
+                break;
+            };
+            case left:
+            {
+                newTail->next->body.center.X = newTail->body.center.X + gameEngine.gridSize;
+                break;
+            };
+            case right:
+            {
+                newTail->next->body.center.X = newTail->body.center.X - gameEngine.gridSize;
+                break;
+            };
+            default:
+                break;
+            }
+            newTail->next->body.radius = newTail->body.radius;
+            newTail->next->body.topLeft.X = newTail->next->body.center.X - newTail->next->body.radius;
+            newTail->next->body.topLeft.Y = newTail->next->body.center.Y - newTail->next->body.radius;
+            newTail->next->body.bottomRight.X = newTail->next->body.center.X + newTail->next->body.radius;
+            newTail->next->body.bottomRight.Y = newTail->next->body.center.Y + newTail->next->body.radius;
+            newTail->next->nextDirection = newTail->direction;
+            newTail->next->direction = newTail->direction;
+            newTail->next->body.color = newTail->body.color;
+            newTail->next->next = NULL;
+
+            // Serial.println("Current Tail X : " + String(head->body.center.X) +
+            //                " Y : " + String(head->body.center.Y) +
+            //                " New Tail Center X : " + String(newTail->next->body.center.X) +
+            //                "  Y : " + String(newTail->next->body.center.Y) +
+            //                " R : " + String(newTail->next->body.radius) +
+            //                " Top Left X : " + String(newTail->next->body.topLeft.X) +
+            //                " Y : " + String(newTail->next->body.topLeft.Y) +
+            //                " Bottom X : " + String(newTail->next->body.bottomRight.X) +
+            //                " Y : " + String(newTail->next->body.bottomRight.Y));
 
             gameEngine.isHitItem = !gameEngine.isHitItem;
             straightWall.isDraw = !straightWall.isDraw;
@@ -367,75 +428,226 @@ void loop()
         }
 
         player_t *tail = head;
+        while (tail->next != NULL)
+        {
+            tail = tail->next;
+        }
+
+        Serial.println(" New Tail Center X : " + String(tail->body.center.X) +
+                       "  Y : " + String(tail->body.center.Y) +
+                       " R : " + String(tail->body.radius) +
+                       " Top Left X : " + String(tail->body.topLeft.X) +
+                       " Y : " + String(tail->body.topLeft.Y) +
+                       " Bottom X : " + String(tail->body.bottomRight.X) +
+                       " Y : " + String(tail->body.bottomRight.Y));
+
         tft.fillRectangle(tail->body.topLeft.X,
                           tail->body.topLeft.Y,
                           tail->body.bottomRight.X,
                           tail->body.bottomRight.Y,
                           gameEngine.backgroundColor);
-
+*/
         // Update Tail Center Position
 
         // Update Snake Direction
-        head->nextDirection = joyStickDecode();
-        if (head->nextDirection == stable)
+        int readFromJoy = joyStickDecode();
+        if (readFromJoy == 99)
         {
-            head->nextDirection = gameEngine.lastDirection;
+            player_t *newTail = head;
+            while (newTail->next != NULL)
+            {
+                newTail = newTail->next;
+            }
+
+            newTail->next = (player_t *)malloc(sizeof(player_t));
+            newTail->next->body.center.X = newTail->body.center.X;
+            newTail->next->body.center.Y = newTail->body.center.Y;
+            switch (newTail->direction)
+            {
+            case up:
+            {
+                newTail->next->body.center.Y += gameEngine.gridSize;
+                break;
+            };
+            case down:
+            {
+                newTail->next->body.center.Y -= +gameEngine.gridSize;
+                break;
+            };
+            case left:
+            {
+                newTail->next->body.center.X -= gameEngine.gridSize;
+                break;
+            };
+            case right:
+            {
+                newTail->next->body.center.X += gameEngine.gridSize;
+                break;
+            };
+            default:
+                break;
+            }
+            newTail->next->body.radius = newTail->body.radius;
+            newTail->next->body.topLeft.X = newTail->next->body.center.X - newTail->next->body.radius;
+            newTail->next->body.topLeft.Y = newTail->next->body.center.Y - newTail->next->body.radius;
+            newTail->next->body.bottomRight.X = newTail->next->body.center.X + newTail->next->body.radius;
+            newTail->next->body.bottomRight.Y = newTail->next->body.center.Y + newTail->next->body.radius;
+            newTail->next->nextDirection = newTail->direction;
+            newTail->next->direction = newTail->direction;
+            newTail->next->body.color = newTail->body.color;
+            newTail->next->next = NULL;
+            player_t *print_snake = head;
+            int no = 0;
+            PRINT_NEW_LINE("========= New Tail Detail =========");
+            while (print_snake != NULL)
+            {
+                PRINT_NEW_LINE("NO : " + String(no++) + " X : " + String(print_snake->body.center.X) +
+                               " Y : " + String(print_snake->body.center.Y));
+
+                print_snake = print_snake->next;
+            }
+            PRINT_NEW_LINE("====================");
         }
-        else
+        if (readFromJoy != stable && readFromJoy != 99)
         {
-            gameEngine.lastDirection = head->nextDirection;
+
+            player_t *tail = head;
+            int tail_no = 0;
+            while (tail->next != NULL)
+            {
+                tail_no++;
+                tail = tail->next;
+            }
+            PRINT_NEW_LINE("Last Tail tail_no : " + String(tail_no) + " X : " + String(tail->body.center.X) +
+                           " Y : " + String(tail->body.center.Y) +
+                           " Top Left X : " + String(tail->body.topLeft.X) +
+                           " Y : " + String(tail->body.topLeft.Y) +
+                           " Bottom X : " + String(tail->body.bottomRight.X) +
+                           " Y : " + String(tail->body.bottomRight.Y));
+            PRINT_NEW_LINE("==================");
+            tft.fillRectangle(tail->body.topLeft.X,
+                              tail->body.topLeft.Y,
+                              tail->body.bottomRight.X,
+                              tail->body.bottomRight.Y,
+                              COLOR_BLACK);
+            head->nextDirection = readFromJoy;
+
+            PRINT_NEW_LINE(String(joyStickAction2Str(head->nextDirection)));
+            player_t *current = head;
+            current->direction = current->nextDirection;
+            while (current->next != NULL)
+            {
+                current->next->nextDirection = current->direction;
+                current = current->next;
+            }
+
+            player_t *current_pos = head;
+            int no = 0;
+            PRINT_NEW_LINE("========= Update POS Detail =========");
+
+            while (current_pos != NULL)
+            {
+                Serial.print("NO : " + String(no++) + " X : " + String(current_pos->body.center.X) +
+                             " Y : " + String(current_pos->body.center.Y) + " ==> ");
+                switch (current_pos->direction)
+                {
+                case up:
+                    current_pos->body.center.Y -= gameEngine.gridSize;
+                    break;
+                case down:
+                    current_pos->body.center.Y += gameEngine.gridSize;
+                    break;
+                case left:
+                    current_pos->body.center.X -= gameEngine.gridSize;
+                    break;
+                case right:
+                    current_pos->body.center.X += gameEngine.gridSize;
+                    break;
+                default:
+                    break;
+                }
+                current_pos->body.topLeft.X = current_pos->body.center.X - current_pos->body.radius;
+                current_pos->body.topLeft.Y = current_pos->body.center.Y - current_pos->body.radius;
+                current_pos->body.bottomRight.X = current_pos->body.center.X + current_pos->body.radius;
+                current_pos->body.bottomRight.Y = current_pos->body.center.Y + current_pos->body.radius;
+                PRINT_NEW_LINE(" X : " + String(current_pos->body.center.X) +
+                               " Y : " + String(current_pos->body.center.Y));
+                current_pos = current_pos->next;
+            }
+            PRINT_NEW_LINE("==================");
+
+            // Update Snake Center Position
+
+            tft.fillRectangle(head->body.topLeft.X,
+                              head->body.topLeft.Y,
+                              head->body.bottomRight.X,
+                              head->body.bottomRight.Y,
+                              head->body.color);
         }
-
-        while (tail->next != NULL)
-        {
-            tail = tail->next;
-        }
-        // Serial.println("Tail Center X : " + String(tail->body.center.X) + "  Y :  " + String(tail->body.center.Y));
-
-        player_t *current = head;
-        current->direction = current->nextDirection;
-        while (current->next != NULL)
-        {
-            current->next->nextDirection = current->direction;
-            current = current->next;
-        }
-
-        // Update Snake Center Position
-        switch (head->direction)
-        {
-        case up:
-            head->body.center.Y -= gameEngine.gridSize;
-            break;
-        case down:
-            head->body.center.Y += gameEngine.gridSize;
-            break;
-        case left:
-            head->body.center.X -= gameEngine.gridSize;
-            break;
-        case right:
-            head->body.center.X += gameEngine.gridSize;
-            break;
-        default:
-            break;
-        }
-
-        head->body.topLeft.X = head->body.center.X - head->body.radius;
-        head->body.topLeft.Y = head->body.center.Y - head->body.radius;
-        head->body.bottomRight.X = head->body.center.X + head->body.radius;
-        head->body.bottomRight.Y = head->body.center.Y + head->body.radius;
-
-        tft.fillRectangle(head->body.topLeft.X,
-                          head->body.topLeft.Y,
-                          head->body.bottomRight.X,
-                          head->body.bottomRight.Y,
-                          head->body.color);
+        // if (head->nextDirection == stable)
+        // {
+        //     head->nextDirection = gameEngine.lastDirection;
+        // }
+        // else
+        // {
+        //     gameEngine.lastDirection = head->nextDirection;
+        // }
 
         break;
     }
     case gameOver:
     {
-       
-        joyStickDecode();
+        tft.clear();
+        tft.setBackgroundColor(COLOR_BLACK);
+        gameEngine.mode = playGame;
+        gameEngine.border.topLeft.X = 0;
+        gameEngine.border.topLeft.Y = 0;
+        gameEngine.border.bottomRight.X = 174;
+        gameEngine.border.bottomRight.Y = 218;
+        gameEngine.border.rectangleDimension.width = gameEngine.border.bottomRight.X - gameEngine.border.topLeft.X;
+        gameEngine.border.rectangleDimension.height = gameEngine.border.bottomRight.Y - gameEngine.border.topLeft.Y;
+        gameEngine.border.color = COLOR_WHITE;
+        gameEngine.isDrawBorder = false;
+        gameEngine.backgroundColor = COLOR_BLACK;
+        gameEngine.gridSize = 5;
+        gameEngine.gridNo.width = gameEngine.border.rectangleDimension.width / gameEngine.gridSize;
+        gameEngine.gridNo.height = gameEngine.border.rectangleDimension.height / gameEngine.gridSize;
+
+        head->body.radius = gameEngine.gridSize / 2;
+        head->body.center.X = ((gameEngine.gridNo.width / 2) * gameEngine.gridSize) - head->body.radius;
+        head->body.center.Y = ((gameEngine.gridNo.height / 2) * gameEngine.gridSize) - head->body.radius;
+        head->body.topLeft.X = head->body.center.X - head->body.radius;
+        head->body.topLeft.Y = head->body.center.Y - head->body.radius;
+        head->body.bottomRight.X = head->body.center.X + head->body.radius;
+        head->body.bottomRight.Y = head->body.center.Y + head->body.radius;
+        head->body.color = COLOR_WHITE;
+        head->direction = up;
+        head->nextDirection = up;
+        head->next = (player_t *)malloc(sizeof(player_t));
+        head->next = NULL;
+
+        food.body.center.X = -1;
+        food.body.center.Y = -1;
+        food.body.color = COLOR_RED;
+        food.body.radius = 1;
+        food.isSpawn = false;
+        food.score = 0;
+        food.isFirstDraw = false;
+
+        straightWall.body.center.X = -1;
+        straightWall.body.center.Y = -1;
+        straightWall.body.radius = gameEngine.gridSize / 2;
+        straightWall.body.topLeft.X = (straightWall.body.center.X - straightWall.body.radius);
+        straightWall.body.topLeft.Y = (straightWall.body.center.Y - (straightWall.body.radius + (2 * gameEngine.gridSize)));
+        straightWall.body.bottomRight.X = (straightWall.body.center.X + straightWall.body.radius);
+        straightWall.body.bottomRight.Y = (straightWall.body.center.Y + (straightWall.body.radius + (2 * gameEngine.gridSize)));
+        straightWall.body.rectangleDimension.width = straightWall.body.bottomRight.X - straightWall.body.topLeft.X;
+        straightWall.body.rectangleDimension.height = straightWall.body.bottomRight.Y - straightWall.body.topLeft.Y;
+        straightWall.body.color = COLOR_GREEN;
+        straightWall.isDraw = false;
+        tft.clear();
+        gameEngine.mode = playGame;
+
         break;
     }
     default:
@@ -513,43 +725,80 @@ int joyStickDecode()
     int pinD = digitalRead(PIN_D);
     int currentStatus;
 
-    if (analogX > 350 && analogY < 360 && analogY == 1)
+    // if (analogX <= 445 && analogX >= 230 && analogY == 0)
+    // {
+    //     currentStatus = up;
+    // }
+    // else if (analogX > 350 && analogX < 400 && analogY > 10)
+    // {
+    //     currentStatus = down;
+    // }
+    // else if (analogX > 400 && analogX < 750 && analogY == 1)
+    // {
+    //     currentStatus = left;
+    // }
+    // else if (analogX < 330 && analogX > -1 && analogY == 1)
+    // {
+    //     currentStatus = right;
+    // }
+    // else
+    // {
+    //     currentStatus = stable;
+    // }
+    // RINT_NEW_LINE("Analog X : " + String(analogX) + "  Y : " + String(analogY) + " Status : " + joyStickAction2Str(currentStatus));
+
+    int incomingByte = 0;
+    incomingByte = Serial.read();
+    if (incomingByte > -1)
+    {
+        // PRINT_NEW_LINE("Read From Serial " + String(incomingByte));
+        switch (incomingByte)
+        {
+        case 119:
+            currentStatus = up;
+            break;
+        case 97:
+            currentStatus = left;
+            break;
+        case 100:
+            currentStatus = right;
+            break;
+        case 115:
+            currentStatus = down;
+            break;
+        case 32:
+            currentStatus = 99;
+            break;
+        default:
+            currentStatus = stable;
+            break;
+        }
+    }
+    else
     {
         currentStatus = stable;
     }
-    if (analogX > 340 && analogX < 400 && analogY == 0)
-    {
-        currentStatus = up;
-    }
-    if (analogX > 350 && analogX < 400 && analogY > 10)
-    {
-        currentStatus = down;
-    }
-    if (analogX > 400 && analogX < 750 && analogY == 1)
-    {
-        currentStatus = left;
-    }
-    if (analogX < 330 && analogX > -1 && analogY == 1)
-    {
-        currentStatus = right;
-    }
-    PRINT_NEW_LINE("Analog X : " + String(analogX) + "  Y : " + String(analogY));
-    if (pinA == 0)
-    {
-        currentStatus = pressA;
-    }
-    if (pinB == 0)
-    {
-        currentStatus = pressB;
-    }
-    if (pinC == 0)
-    {
-        currentStatus = pressC;
-    }
-    if (pinD == 0)
-    {
-        currentStatus = pressD;
-    }
+
+    // if (pinA == 0)
+    // {
+    //     currentStatus = down;
+    // }
+    // if (pinB == 0)
+    // {
+    //     currentStatus = left;
+    // }
+    // if (pinC == 0)
+    // {
+    //     currentStatus = up;
+    // }
+    // if (pinD == 0)
+    // {
+    //     currentStatus = right;
+    // }
+    // if (pinA == 1 && pinB == 1 && pinC == 1 && pinD == 1)
+    // {
+    //     currentStatus = stable;
+    // }
 
     return currentStatus;
 }
