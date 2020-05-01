@@ -210,6 +210,25 @@ void loop()
     {
     case startScreen:
     {
+        tft.setFont(Terminal12x16);
+        tft.drawText(144, 50, "B", COLOR_YELLOW);
+        tft.drawText(144, 80, "O", COLOR_GREEN);
+        tft.drawText(25, 80, "A R D U I N", COLOR_TURQUOISE);
+        tft.drawText(144, 110, "Y", COLOR_RED);
+        delay(3000);
+        tft.clear();
+        tft.drawText(80, 50, "NAKE");
+        tft.drawText(80, 80, "GAME");
+        tft.fillRectangle(55, 50, 75, 55, COLOR_GREENYELLOW);
+        tft.fillRectangle(55, 50, 60, 70, COLOR_GREENYELLOW);
+        tft.fillRectangle(55, 70, 75, 75, COLOR_GREENYELLOW);
+        tft.fillRectangle(70, 70, 75, 90, COLOR_GREENYELLOW);
+        tft.fillRectangle(55, 87, 75, 93, COLOR_GREENYELLOW);
+        tft.fillCircle(47, 91, 3, COLOR_RED);
+        tft.drawRectangle(50, 140, 125, 170, COLOR_LIGHTGRAY);
+        tft.drawText(65, 147, "PLAY", COLOR_TURQUOISE);
+        while (true)
+            ;
         break;
     }
     case playGame:
@@ -288,7 +307,7 @@ void loop()
 
 void initGameEngine()
 {
-    gameEngine.mode = playGame;
+    gameEngine.mode = startScreen;
     gameEngine.border.topLeft.X = 0;
     gameEngine.border.topLeft.Y = 0;
     gameEngine.border.bottomRight.X = SCREEN_WIDTH;
