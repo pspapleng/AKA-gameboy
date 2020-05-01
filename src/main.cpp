@@ -1,17 +1,44 @@
 #include <Arduino.h>
 #include <SPI.h>
 #include <TFT_22_ILI9225.h>
-#include "TrueRandom.h"
 // Prototype Funcitons
+
 void initJoyStick();
 int joyStickDecode();
 String gameMode2Str(int mode);
 String joyStickAction2Str(int statusCode);
+int readFromKeyboard();
+void initGameEngine();
+void initPlayer();
+void initItem();
+void initBarricade();
+void drawBorder();
+void initJoyStick();
+void firstDrawItem();
+void drawItem();
+void drawBarricade();
+void isHitBorder();
+boolean isHitItem();
+void isHitBarricade();
+void isGameOver();
+void reDrawBarricade();
+void addTail();
+void hitItemAction();
+void deleteTail();
+void updateDirectionReverse();
+void updateSnakeDirection();
+void updateSnakePosition();
+void addHead();
 // Arduino Configurations
+#define CENTER_POSITION_CALCULATE(gridNO, gridSize, radius) (((gridNO / 2) * gridSize) - radius)
 #define DEFAULT_BAUD_RATE 9600
+#define DIMENSION_CALCULATE(start, end) (start - end)
+#define GRID_NO_CALCULATE(total, size) (total / size)
+#define PRINT_IN_LINE(a) (Serial.print(a))
 #define PRINT_NEW_LINE(a) (Serial.println(a))
-#define PRINT_IN_LINE(a) (Serial.print(F(a)))
-
+#define RADIUS_CALCULATE(radius) (radius / 2)
+#define SQUARE_TOP_LEFT_CALCULATE(center, radius) (center - radius)
+#define SQUARE_BOTTOM_RIGHT_CALCULATE(center, radius) (center + radius)
 // TFT Configurations
 #define TFT_RST A4
 #define TFT_RS A3
@@ -47,6 +74,10 @@ String joyStickAction2Str(int statusCode);
 #define PLAY_GAME "Play  Game."
 #define GAME_OVER "Game Over."
 
+#define SCREEN_WIDTH 174
+#define SCREEN_HEIGHT 218
+#define START_POSITION -1
+#define GRID_SIZE 5
 //Joy Stick Actions
 enum joyStick
 {
@@ -135,7 +166,8 @@ struct Barricade
 };
 
 TFT_22_ILI9225 tft = TFT_22_ILI9225(TFT_RST, TFT_RS, TFT_CS, TFT_SDI, TFT_CLK, TFT_LED, TFT_BRIGHTNESS);
-
+int period = 500;
+unsigned long time_now = 0;
 struct engine gameEngine;
 struct item food;
 struct Barricade straightWall;
@@ -163,58 +195,11 @@ void setup()
 
     initJoyStick();
     PRINT_NEW_LINE("[  ok  ] JoyStick Pin Initialize.");
-
-    //Init Player Parameter
-
-    // Init Game Engine Parameter
-    gameEngine.mode = playGame;
-    gameEngine.border.topLeft.X = 0;
-    gameEngine.border.topLeft.Y = 0;
-    gameEngine.border.bottomRight.X = 174;
-    gameEngine.border.bottomRight.Y = 218;
-    gameEngine.border.rectangleDimension.width = gameEngine.border.bottomRight.X - gameEngine.border.topLeft.X;
-    gameEngine.border.rectangleDimension.height = gameEngine.border.bottomRight.Y - gameEngine.border.topLeft.Y;
-    gameEngine.border.color = COLOR_WHITE;
-    gameEngine.isDrawBorder = false;
-    gameEngine.backgroundColor = COLOR_BLACK;
-    gameEngine.gridSize = 5;
-    gameEngine.gridNo.width = gameEngine.border.rectangleDimension.width / gameEngine.gridSize;
-    gameEngine.gridNo.height = gameEngine.border.rectangleDimension.height / gameEngine.gridSize;
-
-    head = (player_t *)malloc(sizeof(player_t));
-    head->body.radius = gameEngine.gridSize / 2;
-    head->body.center.X = ((gameEngine.gridNo.width / 2) * gameEngine.gridSize) - head->body.radius;
-    head->body.center.Y = ((gameEngine.gridNo.height / 2) * gameEngine.gridSize) - head->body.radius;
-    head->body.topLeft.X = head->body.center.X - head->body.radius;
-    head->body.topLeft.Y = head->body.center.Y - head->body.radius;
-    head->body.bottomRight.X = head->body.center.X + head->body.radius;
-    head->body.bottomRight.Y = head->body.center.Y + head->body.radius;
-    head->body.color = COLOR_WHITE;
-    head->direction = up;
-    head->nextDirection = up;
-    head->next = (player_t *)malloc(sizeof(player_t));
-    head->next = NULL;
-
-    food.body.center.X = -1;
-    food.body.center.Y = -1;
-    food.body.color = COLOR_RED;
-    food.body.radius = 1;
-    food.isSpawn = false;
-    food.score = 0;
-    food.isFirstDraw = false;
-
-    straightWall.body.center.X = -1;
-    straightWall.body.center.Y = -1;
-    straightWall.body.radius = gameEngine.gridSize / 2;
-    straightWall.body.topLeft.X = (straightWall.body.center.X - straightWall.body.radius);
-    straightWall.body.topLeft.Y = (straightWall.body.center.Y - (straightWall.body.radius + (2 * gameEngine.gridSize)));
-    straightWall.body.bottomRight.X = (straightWall.body.center.X + straightWall.body.radius);
-    straightWall.body.bottomRight.Y = (straightWall.body.center.Y + (straightWall.body.radius + (2 * gameEngine.gridSize)));
-    straightWall.body.rectangleDimension.width = straightWall.body.bottomRight.X - straightWall.body.topLeft.X;
-    straightWall.body.rectangleDimension.height = straightWall.body.bottomRight.Y - straightWall.body.topLeft.Y;
-    straightWall.body.color = COLOR_GREEN;
-    straightWall.isDraw = false;
-
+    initGameEngine();
+    initPlayer();
+    initItem();
+    initBarricade();
+    initJoyStick();
     randomSeed(millis());
     tft.setBackgroundColor(gameEngine.backgroundColor);
 }
@@ -229,369 +214,56 @@ void loop()
     }
     case playGame:
     {
-        /*
-        if (!gameEngine.isDrawBorder)
-        {
-            tft.drawRectangle(gameEngine.border.topLeft.X,
-                              gameEngine.border.topLeft.Y,
-                              gameEngine.border.bottomRight.X,
-                              gameEngine.border.bottomRight.Y,
-                              gameEngine.border.color);
+        head->nextDirection = readFromKeyboard();
 
-            gameEngine.isDrawBorder = !gameEngine.isDrawBorder;
+        if (head->nextDirection == stable)
+        {
+            head->nextDirection = gameEngine.lastDirection;
+        }
+        else
+        {
+            gameEngine.lastDirection = head->nextDirection;
         }
 
-        // Spawn Food
+        if (!gameEngine.isDrawBorder)
+        {
+            drawBorder();
+        }
+
         if (!food.isSpawn)
         {
-            // Random Grid Positon
             if (!food.isFirstDraw)
-            {
-
-                randomSeed(millis());
-                // PRINT_NEW_LINE("RANDOM X Start : " + String(gameEngine.border.topLeft.X + 2) + "  End : " + String(gameEngine.gridNo.width - 2));
-                // PRINT_NEW_LINE("RANDOM X Start : " + String(gameEngine.border.topLeft.Y + 2) + "  End : " + String(gameEngine.gridNo.height - 2));
-
-                food.body.center.X = int(random(gameEngine.border.topLeft.X + 2, gameEngine.gridNo.width - 2));
-                food.body.center.Y = int(random(gameEngine.border.topLeft.Y + 2, gameEngine.gridNo.height - 2));
-
-                // Set Food Center To Center Of Grid
-
-                food.body.center.X = (food.body.center.X * gameEngine.gridSize) - (gameEngine.gridSize / 2);
-                food.body.center.Y = (food.body.center.Y * gameEngine.gridSize) - (gameEngine.gridSize / 2);
-
-                food.isFirstDraw = !food.isFirstDraw;
-            }
-
-            // Drawn Food
-            tft.fillCircle(food.body.center.X, food.body.center.Y, food.body.radius, food.body.color);
-
-            // Change Status Of Food Spawn
-            food.isSpawn = !food.isSpawn;
-
-            // PRINT_NEW_LINE("Food Center   X : " + String(food.body.center.X) + "  Y : " + food.body.center.Y);
+                firstDrawItem();
+            drawItem();
         }
 
         if (!straightWall.isDraw)
+            drawBarricade();
+
+        if (head->nextDirection != stable && head->nextDirection != 99)
         {
-            randomSeed(millis());
-
-            straightWall.body.center.X = int(random(gameEngine.border.topLeft.X + 2, gameEngine.gridNo.width - 2));
-            straightWall.body.center.Y = int(random(gameEngine.border.topLeft.Y + 2, gameEngine.gridNo.height - 2));
-
-            straightWall.body.center.X = (straightWall.body.center.X * gameEngine.gridSize) - (straightWall.body.radius);
-            straightWall.body.center.Y = (straightWall.body.center.Y * gameEngine.gridSize) - (straightWall.body.radius);
-
-            straightWall.body.topLeft.X = (straightWall.body.center.X - straightWall.body.radius);
-            straightWall.body.topLeft.Y = (straightWall.body.center.Y - (straightWall.body.radius + (2 * gameEngine.gridSize)));
-            straightWall.body.bottomRight.X = (straightWall.body.center.X + straightWall.body.radius);
-            straightWall.body.bottomRight.Y = (straightWall.body.center.Y + (straightWall.body.radius + (2 * gameEngine.gridSize)));
-
-            // PRINT_NEW_LINE("WALL Width : " + String(straightWall.body.rectangleDimension.width) +
-            //                "  Height : " + String(straightWall.body.rectangleDimension.height));
-
-            tft.fillRectangle(straightWall.body.topLeft.X,
-                              straightWall.body.topLeft.Y,
-                              straightWall.body.bottomRight.X,
-                              straightWall.body.bottomRight.Y,
-                              straightWall.body.color);
-
-            straightWall.isDraw = !straightWall.isDraw;
-        }
-
-        // Check Hit Border
-        boolean hitLeftBorder = head->body.topLeft.X <= gameEngine.border.topLeft.X;
-        boolean hitTopBorder = head->body.topLeft.Y <= gameEngine.border.topLeft.Y;
-        boolean hitRightBorder = head->body.bottomRight.X >= gameEngine.border.bottomRight.X;
-        boolean hitBottomBorder = head->body.bottomRight.Y >= gameEngine.border.bottomRight.Y;
-        gameEngine.isHitBorder = hitLeftBorder || hitTopBorder || hitRightBorder || hitBottomBorder;
-
-        // Check Hit Item
-        int tempX = food.body.center.X;
-        int tempY = food.body.center.Y;
-
-        // which edge is closest?
-        if (food.body.center.X < head->body.center.X)
-            tempX = head->body.center.X; // test left edge
-        else if (food.body.center.X > head->body.center.X + head->body.rectangleDimension.width)
-            tempX = head->body.center.X + head->body.rectangleDimension.width; // right edge
-        if (food.body.center.Y < head->body.center.Y)
-            tempY = head->body.center.Y; // top edge
-        else if (food.body.center.Y > head->body.center.Y + head->body.rectangleDimension.height)
-            tempY = head->body.center.Y + head->body.rectangleDimension.height; // bottom edge
-
-        // get distance from closest edges
-        float distX = food.body.center.X - tempX;
-        float distY = food.body.center.Y - tempY;
-        float distance = sqrt((distX * distX) + (distY * distY));
-
-        // if the distance is less than the radius, collision!
-        if (distance <= food.body.radius)
-        {
-            gameEngine.isHitItem = true;
-        }
-
-        // Check Hit Walls
-
-        boolean collisionLeft = head->body.topLeft.X + head->body.rectangleDimension.width >= straightWall.body.topLeft.X;
-        boolean collisionRight = head->body.topLeft.X <= straightWall.body.topLeft.X + straightWall.body.rectangleDimension.width;
-        boolean collisionBottom = head->body.topLeft.Y + head->body.rectangleDimension.height >= straightWall.body.topLeft.Y;
-        boolean collisionTop = head->body.topLeft.Y <= straightWall.body.topLeft.Y + straightWall.body.rectangleDimension.height;
-
-        gameEngine.isHitBarricade = collisionLeft && collisionRight && collisionTop && collisionBottom;
-        // PRINT_NEW_LINE("Hit Walls Left : " + String(collisionLeft) +
-        //                "  Right : " + String(collisionRight) +
-        //                "  Top : " + String(collisionTop) +
-        //                "  Bottom : " + String(collisionBottom));
-
-        if (
-            gameEngine.isHitBarricade ||
-            gameEngine.isHitBorder)
-        {
-            gameEngine.mode = gameOver;
-        }
-
-        if (gameEngine.isHitItem)
-        {
-            PRINT_NEW_LINE("HIT ITEM");
-
-
-            gameEngine.score += food.score;
-
-            food.body.center.X = straightWall.body.center.X;
-            food.body.center.Y = straightWall.body.center.Y;
-
-            tft.fillRectangle(straightWall.body.topLeft.X,
-                              straightWall.body.topLeft.Y,
-                              straightWall.body.bottomRight.X,
-                              straightWall.body.bottomRight.Y,
-                              gameEngine.backgroundColor);
-
-            // Update Tail Position
-            player_t *newTail = head;
-            while (newTail->next != NULL)
+            if (millis() >= time_now + period)
             {
-                newTail = newTail->next;
-            }
+                time_now += period;
+                // PRINT_NEW_LINE("Next Direction : " + String(head->nextDirection));
+                deleteTail();
+                addHead();
 
-            newTail->next = (player_t *)malloc(sizeof(player_t));
-            newTail->next->body.center.X = newTail->body.center.X;
-            newTail->next->body.center.Y = newTail->body.center.Y;
-            switch (newTail->direction)
-            {
-            case up:
-            {
-                newTail->next->body.center.Y = newTail->body.center.Y - gameEngine.gridSize;
-                break;
-            };
-            case down:
-            {
-                newTail->next->body.center.Y = newTail->body.center.Y + gameEngine.gridSize;
-                break;
-            };
-            case left:
-            {
-                newTail->next->body.center.X = newTail->body.center.X + gameEngine.gridSize;
-                break;
-            };
-            case right:
-            {
-                newTail->next->body.center.X = newTail->body.center.X - gameEngine.gridSize;
-                break;
-            };
-            default:
-                break;
-            }
-            newTail->next->body.radius = newTail->body.radius;
-            newTail->next->body.topLeft.X = newTail->next->body.center.X - newTail->next->body.radius;
-            newTail->next->body.topLeft.Y = newTail->next->body.center.Y - newTail->next->body.radius;
-            newTail->next->body.bottomRight.X = newTail->next->body.center.X + newTail->next->body.radius;
-            newTail->next->body.bottomRight.Y = newTail->next->body.center.Y + newTail->next->body.radius;
-            newTail->next->nextDirection = newTail->direction;
-            newTail->next->direction = newTail->direction;
-            newTail->next->body.color = newTail->body.color;
-            newTail->next->next = NULL;
+                isHitBorder();
+                gameEngine.isHitItem = isHitItem();
+                isHitBarricade();
 
-            // Serial.println("Current Tail X : " + String(head->body.center.X) +
-            //                " Y : " + String(head->body.center.Y) +
-            //                " New Tail Center X : " + String(newTail->next->body.center.X) +
-            //                "  Y : " + String(newTail->next->body.center.Y) +
-            //                " R : " + String(newTail->next->body.radius) +
-            //                " Top Left X : " + String(newTail->next->body.topLeft.X) +
-            //                " Y : " + String(newTail->next->body.topLeft.Y) +
-            //                " Bottom X : " + String(newTail->next->body.bottomRight.X) +
-            //                " Y : " + String(newTail->next->body.bottomRight.Y));
-
-            gameEngine.isHitItem = !gameEngine.isHitItem;
-            straightWall.isDraw = !straightWall.isDraw;
-            food.isSpawn = !food.isSpawn;
-        }
-
-        player_t *tail = head;
-        while (tail->next != NULL)
-        {
-            tail = tail->next;
-        }
-
-        Serial.println(" New Tail Center X : " + String(tail->body.center.X) +
-                       "  Y : " + String(tail->body.center.Y) +
-                       " R : " + String(tail->body.radius) +
-                       " Top Left X : " + String(tail->body.topLeft.X) +
-                       " Y : " + String(tail->body.topLeft.Y) +
-                       " Bottom X : " + String(tail->body.bottomRight.X) +
-                       " Y : " + String(tail->body.bottomRight.Y));
-
-        tft.fillRectangle(tail->body.topLeft.X,
-                          tail->body.topLeft.Y,
-                          tail->body.bottomRight.X,
-                          tail->body.bottomRight.Y,
-                          gameEngine.backgroundColor);
-*/
-        // Update Tail Center Position
-
-        // Update Snake Direction
-        int readFromJoy = joyStickDecode();
-        if (readFromJoy == 99)
-        {
-            player_t *newTail = head;
-            while (newTail->next != NULL)
-            {
-                newTail = newTail->next;
-            }
-
-            newTail->next = (player_t *)malloc(sizeof(player_t));
-            newTail->next->body.center.X = newTail->body.center.X;
-            newTail->next->body.center.Y = newTail->body.center.Y;
-            switch (newTail->direction)
-            {
-            case up:
-            {
-                newTail->next->body.center.Y += gameEngine.gridSize;
-                break;
-            };
-            case down:
-            {
-                newTail->next->body.center.Y -= +gameEngine.gridSize;
-                break;
-            };
-            case left:
-            {
-                newTail->next->body.center.X -= gameEngine.gridSize;
-                break;
-            };
-            case right:
-            {
-                newTail->next->body.center.X += gameEngine.gridSize;
-                break;
-            };
-            default:
-                break;
-            }
-            newTail->next->body.radius = newTail->body.radius;
-            newTail->next->body.topLeft.X = newTail->next->body.center.X - newTail->next->body.radius;
-            newTail->next->body.topLeft.Y = newTail->next->body.center.Y - newTail->next->body.radius;
-            newTail->next->body.bottomRight.X = newTail->next->body.center.X + newTail->next->body.radius;
-            newTail->next->body.bottomRight.Y = newTail->next->body.center.Y + newTail->next->body.radius;
-            newTail->next->nextDirection = newTail->direction;
-            newTail->next->direction = newTail->direction;
-            newTail->next->body.color = newTail->body.color;
-            newTail->next->next = NULL;
-            player_t *print_snake = head;
-            int no = 0;
-            PRINT_NEW_LINE("========= New Tail Detail =========");
-            while (print_snake != NULL)
-            {
-                PRINT_NEW_LINE("NO : " + String(no++) + " X : " + String(print_snake->body.center.X) +
-                               " Y : " + String(print_snake->body.center.Y));
-
-                print_snake = print_snake->next;
-            }
-            PRINT_NEW_LINE("====================");
-        }
-        if (readFromJoy != stable && readFromJoy != 99)
-        {
-
-            player_t *tail = head;
-            int tail_no = 0;
-            while (tail->next != NULL)
-            {
-                tail_no++;
-                tail = tail->next;
-            }
-            PRINT_NEW_LINE("Last Tail tail_no : " + String(tail_no) + " X : " + String(tail->body.center.X) +
-                           " Y : " + String(tail->body.center.Y) +
-                           " Top Left X : " + String(tail->body.topLeft.X) +
-                           " Y : " + String(tail->body.topLeft.Y) +
-                           " Bottom X : " + String(tail->body.bottomRight.X) +
-                           " Y : " + String(tail->body.bottomRight.Y));
-            PRINT_NEW_LINE("==================");
-            tft.fillRectangle(tail->body.topLeft.X,
-                              tail->body.topLeft.Y,
-                              tail->body.bottomRight.X,
-                              tail->body.bottomRight.Y,
-                              COLOR_BLACK);
-            head->nextDirection = readFromJoy;
-
-            PRINT_NEW_LINE(String(joyStickAction2Str(head->nextDirection)));
-            player_t *current = head;
-            current->direction = current->nextDirection;
-            while (current->next != NULL)
-            {
-                current->next->nextDirection = current->direction;
-                current = current->next;
-            }
-
-            player_t *current_pos = head;
-            int no = 0;
-            PRINT_NEW_LINE("========= Update POS Detail =========");
-
-            while (current_pos != NULL)
-            {
-                Serial.print("NO : " + String(no++) + " X : " + String(current_pos->body.center.X) +
-                             " Y : " + String(current_pos->body.center.Y) + " ==> ");
-                switch (current_pos->direction)
+                if (gameEngine.isHitItem)
                 {
-                case up:
-                    current_pos->body.center.Y -= gameEngine.gridSize;
-                    break;
-                case down:
-                    current_pos->body.center.Y += gameEngine.gridSize;
-                    break;
-                case left:
-                    current_pos->body.center.X -= gameEngine.gridSize;
-                    break;
-                case right:
-                    current_pos->body.center.X += gameEngine.gridSize;
-                    break;
-                default:
-                    break;
+                    PRINT_NEW_LINE("IS Hit Item");
+                    reDrawBarricade();
+                    addTail();
+                    hitItemAction();
                 }
-                current_pos->body.topLeft.X = current_pos->body.center.X - current_pos->body.radius;
-                current_pos->body.topLeft.Y = current_pos->body.center.Y - current_pos->body.radius;
-                current_pos->body.bottomRight.X = current_pos->body.center.X + current_pos->body.radius;
-                current_pos->body.bottomRight.Y = current_pos->body.center.Y + current_pos->body.radius;
-                PRINT_NEW_LINE(" X : " + String(current_pos->body.center.X) +
-                               " Y : " + String(current_pos->body.center.Y));
-                current_pos = current_pos->next;
+
+                isGameOver();
             }
-            PRINT_NEW_LINE("==================");
-
-            // Update Snake Center Position
-
-            tft.fillRectangle(head->body.topLeft.X,
-                              head->body.topLeft.Y,
-                              head->body.bottomRight.X,
-                              head->body.bottomRight.Y,
-                              head->body.color);
         }
-        // if (head->nextDirection == stable)
-        // {
-        //     head->nextDirection = gameEngine.lastDirection;
-        // }
-        // else
-        // {
-        //     gameEngine.lastDirection = head->nextDirection;
-        // }
 
         break;
     }
@@ -599,61 +271,409 @@ void loop()
     {
         tft.clear();
         tft.setBackgroundColor(COLOR_BLACK);
+        initGameEngine();
+        initPlayer();
+        initItem();
+        initBarricade();
+        initJoyStick();
+        randomSeed(millis());
+
         gameEngine.mode = playGame;
-        gameEngine.border.topLeft.X = 0;
-        gameEngine.border.topLeft.Y = 0;
-        gameEngine.border.bottomRight.X = 174;
-        gameEngine.border.bottomRight.Y = 218;
-        gameEngine.border.rectangleDimension.width = gameEngine.border.bottomRight.X - gameEngine.border.topLeft.X;
-        gameEngine.border.rectangleDimension.height = gameEngine.border.bottomRight.Y - gameEngine.border.topLeft.Y;
-        gameEngine.border.color = COLOR_WHITE;
-        gameEngine.isDrawBorder = false;
-        gameEngine.backgroundColor = COLOR_BLACK;
-        gameEngine.gridSize = 5;
-        gameEngine.gridNo.width = gameEngine.border.rectangleDimension.width / gameEngine.gridSize;
-        gameEngine.gridNo.height = gameEngine.border.rectangleDimension.height / gameEngine.gridSize;
-
-        head->body.radius = gameEngine.gridSize / 2;
-        head->body.center.X = ((gameEngine.gridNo.width / 2) * gameEngine.gridSize) - head->body.radius;
-        head->body.center.Y = ((gameEngine.gridNo.height / 2) * gameEngine.gridSize) - head->body.radius;
-        head->body.topLeft.X = head->body.center.X - head->body.radius;
-        head->body.topLeft.Y = head->body.center.Y - head->body.radius;
-        head->body.bottomRight.X = head->body.center.X + head->body.radius;
-        head->body.bottomRight.Y = head->body.center.Y + head->body.radius;
-        head->body.color = COLOR_WHITE;
-        head->direction = up;
-        head->nextDirection = up;
-        head->next = (player_t *)malloc(sizeof(player_t));
-        head->next = NULL;
-
-        food.body.center.X = -1;
-        food.body.center.Y = -1;
-        food.body.color = COLOR_RED;
-        food.body.radius = 1;
-        food.isSpawn = false;
-        food.score = 0;
-        food.isFirstDraw = false;
-
-        straightWall.body.center.X = -1;
-        straightWall.body.center.Y = -1;
-        straightWall.body.radius = gameEngine.gridSize / 2;
-        straightWall.body.topLeft.X = (straightWall.body.center.X - straightWall.body.radius);
-        straightWall.body.topLeft.Y = (straightWall.body.center.Y - (straightWall.body.radius + (2 * gameEngine.gridSize)));
-        straightWall.body.bottomRight.X = (straightWall.body.center.X + straightWall.body.radius);
-        straightWall.body.bottomRight.Y = (straightWall.body.center.Y + (straightWall.body.radius + (2 * gameEngine.gridSize)));
-        straightWall.body.rectangleDimension.width = straightWall.body.bottomRight.X - straightWall.body.topLeft.X;
-        straightWall.body.rectangleDimension.height = straightWall.body.bottomRight.Y - straightWall.body.topLeft.Y;
-        straightWall.body.color = COLOR_GREEN;
-        straightWall.isDraw = false;
-        tft.clear();
-        gameEngine.mode = playGame;
-
         break;
     }
     default:
         break;
     }
-    delay(100);
+}
+
+void initGameEngine()
+{
+    gameEngine.mode = playGame;
+    gameEngine.border.topLeft.X = 0;
+    gameEngine.border.topLeft.Y = 0;
+    gameEngine.border.bottomRight.X = SCREEN_WIDTH;
+    gameEngine.border.bottomRight.Y = SCREEN_HEIGHT;
+    gameEngine.border.rectangleDimension.width = DIMENSION_CALCULATE(gameEngine.border.bottomRight.X, gameEngine.border.topLeft.X);
+    gameEngine.border.rectangleDimension.height = DIMENSION_CALCULATE(gameEngine.border.bottomRight.Y, gameEngine.border.topLeft.Y);
+    gameEngine.border.color = COLOR_WHITE;
+    gameEngine.isDrawBorder = false;
+    gameEngine.backgroundColor = COLOR_BLACK;
+    gameEngine.gridSize = GRID_SIZE;
+    gameEngine.gridNo.width = GRID_NO_CALCULATE(gameEngine.border.rectangleDimension.width, gameEngine.gridSize);
+    gameEngine.gridNo.height = GRID_NO_CALCULATE(gameEngine.border.rectangleDimension.height, gameEngine.gridSize);
+}
+
+void initPlayer()
+{
+    head = (player_t *)malloc(sizeof(player_t));
+    head->body.radius = RADIUS_CALCULATE(gameEngine.gridSize);
+    head->body.center.X = CENTER_POSITION_CALCULATE(gameEngine.gridNo.width, gameEngine.gridSize, head->body.radius);
+    head->body.center.Y = CENTER_POSITION_CALCULATE(gameEngine.gridNo.height, gameEngine.gridSize, head->body.radius);
+    head->body.topLeft.X = SQUARE_TOP_LEFT_CALCULATE(head->body.center.X, head->body.radius);
+    head->body.topLeft.Y = SQUARE_TOP_LEFT_CALCULATE(head->body.center.Y, head->body.radius);
+    head->body.bottomRight.X = SQUARE_BOTTOM_RIGHT_CALCULATE(head->body.center.X, head->body.radius);
+    head->body.bottomRight.Y = SQUARE_BOTTOM_RIGHT_CALCULATE(head->body.center.Y, head->body.radius);
+    head->body.color = COLOR_WHITE;
+    head->direction = up;
+    head->nextDirection = up;
+    head->next = (player_t *)malloc(sizeof(player_t));
+    head->next = NULL;
+}
+
+void initItem()
+{
+    food.body.center.X = START_POSITION;
+    food.body.center.Y = START_POSITION;
+    food.body.color = COLOR_RED;
+    food.body.radius = 1;
+    food.isSpawn = false;
+    food.score = 0;
+    food.isFirstDraw = false;
+}
+
+void initBarricade()
+{
+    straightWall.body.center.X = START_POSITION;
+    straightWall.body.center.Y = START_POSITION;
+    straightWall.body.radius = gameEngine.gridSize / 2;
+    straightWall.body.topLeft.X = (straightWall.body.center.X - straightWall.body.radius);
+    straightWall.body.topLeft.Y = (straightWall.body.center.Y - (straightWall.body.radius + (2 * gameEngine.gridSize)));
+    straightWall.body.bottomRight.X = (straightWall.body.center.X + straightWall.body.radius);
+    straightWall.body.bottomRight.Y = (straightWall.body.center.Y + (straightWall.body.radius + (2 * gameEngine.gridSize)));
+    straightWall.body.rectangleDimension.width = straightWall.body.bottomRight.X - straightWall.body.topLeft.X;
+    straightWall.body.rectangleDimension.height = straightWall.body.bottomRight.Y - straightWall.body.topLeft.Y;
+    straightWall.body.color = COLOR_GREEN;
+    straightWall.isDraw = false;
+}
+
+void drawBorder()
+{
+    tft.drawRectangle(gameEngine.border.topLeft.X,
+                      gameEngine.border.topLeft.Y,
+                      gameEngine.border.bottomRight.X,
+                      gameEngine.border.bottomRight.Y,
+                      gameEngine.border.color);
+
+    gameEngine.isDrawBorder = !gameEngine.isDrawBorder;
+}
+
+void firstDrawItem()
+{
+    randomSeed(millis());
+
+    food.body.center.X = int(random(gameEngine.border.topLeft.X + 2, gameEngine.gridNo.width - 2));
+    food.body.center.Y = int(random(gameEngine.border.topLeft.Y + 2, gameEngine.gridNo.height - 2));
+
+    food.body.center.X = (food.body.center.X * gameEngine.gridSize) - (gameEngine.gridSize / 2);
+    food.body.center.Y = (food.body.center.Y * gameEngine.gridSize) - (gameEngine.gridSize / 2);
+
+    food.isFirstDraw = !food.isFirstDraw;
+}
+
+void drawItem()
+{
+    tft.fillCircle(food.body.center.X, food.body.center.Y, food.body.radius, food.body.color);
+
+    food.isSpawn = !food.isSpawn;
+}
+
+void drawBarricade()
+{
+    randomSeed(millis());
+
+    straightWall.body.center.X = int(random(gameEngine.border.topLeft.X + 2, gameEngine.gridNo.width - 2));
+    straightWall.body.center.Y = int(random(gameEngine.border.topLeft.Y + 2, gameEngine.gridNo.height - 2));
+
+    straightWall.body.center.X = (straightWall.body.center.X * gameEngine.gridSize) - (straightWall.body.radius);
+    straightWall.body.center.Y = (straightWall.body.center.Y * gameEngine.gridSize) - (straightWall.body.radius);
+
+    straightWall.body.topLeft.X = (straightWall.body.center.X - straightWall.body.radius);
+    straightWall.body.topLeft.Y = (straightWall.body.center.Y - (straightWall.body.radius + (2 * gameEngine.gridSize)));
+    straightWall.body.bottomRight.X = (straightWall.body.center.X + straightWall.body.radius);
+    straightWall.body.bottomRight.Y = (straightWall.body.center.Y + (straightWall.body.radius + (2 * gameEngine.gridSize)));
+
+    tft.fillRectangle(straightWall.body.topLeft.X,
+                      straightWall.body.topLeft.Y,
+                      straightWall.body.bottomRight.X,
+                      straightWall.body.bottomRight.Y,
+                      straightWall.body.color);
+
+    straightWall.isDraw = !straightWall.isDraw;
+}
+
+void isHitBorder()
+{
+    boolean hitLeftBorder = head->body.topLeft.X <= gameEngine.border.topLeft.X;
+    boolean hitTopBorder = head->body.topLeft.Y <= gameEngine.border.topLeft.Y;
+    boolean hitRightBorder = head->body.bottomRight.X >= gameEngine.border.bottomRight.X;
+    boolean hitBottomBorder = head->body.bottomRight.Y >= gameEngine.border.bottomRight.Y;
+    gameEngine.isHitBorder = hitLeftBorder || hitTopBorder || hitRightBorder || hitBottomBorder;
+}
+
+boolean isHitItem()
+{
+    int cx = food.body.center.X;
+    int cy = food.body.center.Y;
+    int radius = food.body.radius;
+    int rw = head->body.rectangleDimension.width;
+    int rh = head->body.rectangleDimension.height;
+    int rx = head->body.center.X;
+    int ry = head->body.center.Y;
+    // PRINT_NEW_LINE("Circle X : " + String(cx) +
+    //                " Y : " + String(cy) +
+    //                "Rectangle X  : " + String(rx) +
+    //                " Y  : " + String(ry));
+    int distX = abs(cx - rx - (rw / 2));
+    int distY = abs(cy - ry - (rh / 2));
+
+    if (distX > ((rw / 2) + radius))
+    {
+        return false;
+    }
+    if (distY > ((rh / 2) + radius))
+    {
+        return false;
+    }
+
+    if (distX <= (rw / 2))
+    {
+        return true;
+    }
+    if (distY <= (rh / 2))
+    {
+        return true;
+    }
+
+    int dx = distX - (rw / 2);
+    int dy = distY - (rh / 2);
+
+    return ((dx * dx) + (dy * dy) <= (radius * radius));
+    // return cx == rx && cy == ry;
+}
+void isHitBarricade()
+{
+    boolean collisionLeft = head->body.topLeft.X + head->body.rectangleDimension.width >= straightWall.body.topLeft.X;
+    boolean collisionRight = head->body.topLeft.X <= straightWall.body.topLeft.X + straightWall.body.rectangleDimension.width;
+    boolean collisionBottom = head->body.topLeft.Y + head->body.rectangleDimension.height >= straightWall.body.topLeft.Y;
+    boolean collisionTop = head->body.topLeft.Y <= straightWall.body.topLeft.Y + straightWall.body.rectangleDimension.height;
+
+    gameEngine.isHitBarricade = collisionLeft && collisionRight && collisionTop && collisionBottom;
+}
+
+void isGameOver()
+{
+    if (gameEngine.isHitBarricade || gameEngine.isHitBorder)
+    {
+        gameEngine.mode = gameOver;
+    }
+}
+
+void reDrawBarricade()
+{
+    PRINT_IN_LINE("Food Location X : " + String(food.body.center.X) +
+                  " Y : " + String(food.body.center.Y));
+    food.body.center.X = straightWall.body.center.X;
+    food.body.center.Y = straightWall.body.center.Y;
+    tft.fillRectangle(straightWall.body.topLeft.X,
+                      straightWall.body.topLeft.Y,
+                      straightWall.body.bottomRight.X,
+                      straightWall.body.bottomRight.Y,
+                      gameEngine.backgroundColor);
+    tft.fillCircle(food.body.center.X, food.body.center.Y, food.body.radius, food.body.color);
+    PRINT_NEW_LINE(" ==> X " + String(food.body.center.X) +
+                   " Y : " + String(food.body.center.Y));
+}
+
+void addTail()
+{
+    player_t *newTail = head;
+    while (newTail->next != NULL)
+    {
+        newTail = newTail->next;
+    }
+
+    newTail->next = (player_t *)malloc(sizeof(player_t));
+    newTail->next->body.center.X = newTail->body.center.X;
+    newTail->next->body.center.Y = newTail->body.center.Y;
+    switch (newTail->direction)
+    {
+    case up:
+    {
+        newTail->next->body.center.Y += gameEngine.gridSize;
+        break;
+    };
+    case down:
+    {
+        newTail->next->body.center.Y -= +gameEngine.gridSize;
+        break;
+    };
+    case left:
+    {
+        newTail->next->body.center.X -= gameEngine.gridSize;
+        break;
+    };
+    case right:
+    {
+        newTail->next->body.center.X += gameEngine.gridSize;
+        break;
+    };
+    default:
+        break;
+    }
+    newTail->next->body.radius = newTail->body.radius;
+    newTail->next->body.topLeft.X = newTail->next->body.center.X - newTail->next->body.radius;
+    newTail->next->body.topLeft.Y = newTail->next->body.center.Y - newTail->next->body.radius;
+    newTail->next->body.bottomRight.X = newTail->next->body.center.X + newTail->next->body.radius;
+    newTail->next->body.bottomRight.Y = newTail->next->body.center.Y + newTail->next->body.radius;
+    newTail->next->nextDirection = newTail->direction;
+    newTail->next->direction = newTail->direction;
+    newTail->next->body.color = newTail->body.color;
+    newTail->next->next = NULL;
+}
+
+void hitItemAction()
+{
+    gameEngine.score += food.score;
+    gameEngine.isHitItem = !gameEngine.isHitItem;
+    straightWall.isDraw = !straightWall.isDraw;
+    // food.isSpawn = !food.isSpawn;
+}
+
+void deleteTail()
+{
+    player_t *tail = head;
+    while (tail->next != NULL)
+    {
+        tail = tail->next;
+    }
+    tail->body.topLeft.X = tail->body.center.X - tail->body.radius;
+    tail->body.topLeft.Y = tail->body.center.Y - tail->body.radius;
+    tail->body.bottomRight.X = tail->body.center.X + tail->body.radius;
+    tail->body.bottomRight.Y = tail->body.center.Y + tail->body.radius;
+    // PRINT_NEW_LINE("Delete AT   X : " + String(tail->body.center.X) +
+    //                " Y : " + String(tail->body.center.Y));
+
+    tft.fillRectangle(tail->body.topLeft.X,
+                      tail->body.topLeft.Y,
+                      tail->body.bottomRight.X,
+                      tail->body.bottomRight.Y,
+                      COLOR_BLACK);
+
+    tft.fillRectangle(tail->body.topLeft.X,
+                      tail->body.topLeft.Y,
+                      tail->body.bottomRight.X,
+                      tail->body.bottomRight.Y,
+                      COLOR_BLACK);
+    tft.fillRectangle(tail->body.topLeft.X,
+                      tail->body.topLeft.Y,
+                      tail->body.bottomRight.X,
+                      tail->body.bottomRight.Y,
+                      COLOR_BLACK);
+    tft.fillRectangle(tail->body.topLeft.X,
+                      tail->body.topLeft.Y,
+                      tail->body.bottomRight.X,
+                      tail->body.bottomRight.Y,
+                      COLOR_BLACK);
+}
+void updateDirectionReverse(player_t *head, int number, int nextDirection)
+{
+    // Base case
+    if (head == NULL)
+        return;
+    number++;
+    updateDirectionReverse(head->next, number, head->direction);
+    head->direction = nextDirection;
+}
+void updateSnakeDirection()
+{
+
+    player_t *cur = head;
+    int size = 0;
+    while (cur != NULL)
+    {
+        size++;
+        cur = cur->next;
+    }
+    // PRINT_NEW_LINE("Size : " + String(size));
+    int *arr = (int *)malloc(size * sizeof(int));
+    int nextData = head->nextDirection;
+    // PRINT_NEW_LINE("Next Data : " + String(nextData));
+    cur = NULL;
+    cur = head;
+    int index = 0;
+    while (cur != NULL)
+    {
+        *(arr + index) = cur->direction;
+        index += 1;
+        cur = cur->next;
+    }
+    for (int k = size - 1; k > 0; --k)
+    {
+        *(arr + k) = *(arr + (k - 1));
+    }
+    *(arr) = nextData;
+
+    cur = NULL;
+    cur = head;
+    index = 0;
+    while (cur != NULL)
+    {
+        cur->direction = *(arr + index);
+        index += 1;
+        cur = cur->next;
+    }
+    /*
+    PRINT_NEW_LINE("===== PRINT SNAKE =====");
+    player_t *print = head;
+    int number = 0;
+    while (print != NULL)
+    {
+        PRINT_NEW_LINE("NO . " + String(number++) + " Direction :  " + String(print->direction));
+        print = print->next;
+    }
+    PRINT_NEW_LINE("=======================");*/
+}
+void updateSnakePosition()
+{
+
+    player_t *current_pos = head;
+    while (current_pos != NULL)
+    {
+        switch (current_pos->direction)
+        {
+        case up:
+            current_pos->body.center.Y -= gameEngine.gridSize;
+            break;
+        case down:
+            current_pos->body.center.Y += gameEngine.gridSize;
+            break;
+        case left:
+            current_pos->body.center.X -= gameEngine.gridSize;
+            break;
+        case right:
+            current_pos->body.center.X += gameEngine.gridSize;
+            break;
+        default:
+            break;
+        }
+        current_pos->body.topLeft.X = current_pos->body.center.X - current_pos->body.radius;
+        current_pos->body.topLeft.Y = current_pos->body.center.Y - current_pos->body.radius;
+        current_pos->body.bottomRight.X = current_pos->body.center.X + current_pos->body.radius;
+        current_pos->body.bottomRight.Y = current_pos->body.center.Y + current_pos->body.radius;
+
+        current_pos = current_pos->next;
+    }
+}
+
+void addHead()
+{
+    updateSnakeDirection();
+    updateSnakePosition();
+    tft.fillRectangle(head->body.topLeft.X,
+                      head->body.topLeft.Y,
+                      head->body.bottomRight.X,
+                      head->body.bottomRight.Y,
+                      head->body.color);
 }
 
 void initJoyStick()
@@ -717,36 +737,60 @@ String joyStickAction2Str(int statusCode)
 int joyStickDecode()
 {
 
-    int analogX = analogRead(PIN_ANALOG_X);
-    int analogY = analogRead(PIN_ANALOG_Y);
     int pinA = digitalRead(PIN_A);
     int pinB = digitalRead(PIN_B);
     int pinC = digitalRead(PIN_C);
     int pinD = digitalRead(PIN_D);
     int currentStatus;
 
-    // if (analogX <= 445 && analogX >= 230 && analogY == 0)
-    // {
-    //     currentStatus = up;
-    // }
-    // else if (analogX > 350 && analogX < 400 && analogY > 10)
-    // {
-    //     currentStatus = down;
-    // }
-    // else if (analogX > 400 && analogX < 750 && analogY == 1)
-    // {
-    //     currentStatus = left;
-    // }
-    // else if (analogX < 330 && analogX > -1 && analogY == 1)
-    // {
-    //     currentStatus = right;
-    // }
-    // else
-    // {
-    //     currentStatus = stable;
-    // }
-    // RINT_NEW_LINE("Analog X : " + String(analogX) + "  Y : " + String(analogY) + " Status : " + joyStickAction2Str(currentStatus));
+    if (pinA == 0)
+    {
+        currentStatus = down;
+    }
+    if (pinB == 0)
+    {
+        currentStatus = left;
+    }
+    if (pinC == 0)
+    {
+        currentStatus = up;
+    }
+    if (pinD == 0)
+    {
+        currentStatus = right;
+    }
+    if (pinA == 1 && pinB == 1 && pinC == 1 && pinD == 1)
+    {
+        currentStatus = stable;
+    }
 
+    return currentStatus;
+}
+
+String gameMode2Str(int mode)
+{
+    String str = "";
+    switch (mode)
+    {
+    case startScreen:
+        str = START_SCREEN;
+        break;
+    case playGame:
+        str = PLAY_GAME;
+        break;
+    case gameOver:
+        str = GAME_OVER;
+        break;
+    default:
+        str = "Out Of Case";
+        break;
+    }
+    return str;
+}
+
+int readFromKeyboard()
+{
+    int currentStatus = stable;
     int incomingByte = 0;
     incomingByte = Serial.read();
     if (incomingByte > -1)
@@ -778,48 +822,5 @@ int joyStickDecode()
     {
         currentStatus = stable;
     }
-
-    // if (pinA == 0)
-    // {
-    //     currentStatus = down;
-    // }
-    // if (pinB == 0)
-    // {
-    //     currentStatus = left;
-    // }
-    // if (pinC == 0)
-    // {
-    //     currentStatus = up;
-    // }
-    // if (pinD == 0)
-    // {
-    //     currentStatus = right;
-    // }
-    // if (pinA == 1 && pinB == 1 && pinC == 1 && pinD == 1)
-    // {
-    //     currentStatus = stable;
-    // }
-
     return currentStatus;
-}
-
-String gameMode2Str(int mode)
-{
-    String str = "";
-    switch (mode)
-    {
-    case startScreen:
-        str = START_SCREEN;
-        break;
-    case playGame:
-        str = PLAY_GAME;
-        break;
-    case gameOver:
-        str = GAME_OVER;
-        break;
-    default:
-        str = "Out Of Case";
-        break;
-    }
-    return str;
 }
