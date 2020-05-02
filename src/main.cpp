@@ -99,6 +99,12 @@ enum gameMode
     gameOver,
 };
 
+enum startScreenStge
+{
+    ardunoboyLogo,
+    snakeGameLogo,
+    waitKeyPress
+};
 struct coordination
 {
     uint8_t X;
@@ -157,6 +163,7 @@ struct engine
     int lastDirection;
     struct rectangle border;
     struct dimension gridNo;
+    int screenStage;
 };
 
 struct Barricade
@@ -166,12 +173,19 @@ struct Barricade
 };
 
 TFT_22_ILI9225 tft = TFT_22_ILI9225(TFT_RST, TFT_RS, TFT_CS, TFT_SDI, TFT_CLK, TFT_LED, TFT_BRIGHTNESS);
+const long interval = 1000;
+int blinkState = LOW;
+
 int period = 500;
-unsigned long time_now = 0;
+
+player_t *head = NULL;
+
+struct Barricade straightWall;
 struct engine gameEngine;
 struct item food;
-struct Barricade straightWall;
-player_t *head = NULL;
+
+unsigned long previousMillis = 0;
+unsigned long time_now = 0;
 
 void setup()
 {
@@ -210,56 +224,85 @@ void loop()
     {
     case startScreen:
     {
-        //arduinoboy
-        tft.setFont(Terminal12x16);
-        tft.drawText(144, 50, "B", COLOR_YELLOW);
-        tft.drawText(144, 80, "O", COLOR_GREEN);
-        tft.drawText(25, 80, "A R D U I N", COLOR_TURQUOISE);
-        tft.drawText(144, 110, "Y", COLOR_RED);
-        delay(3000);
-        //clear
-        tft.clear();
-        //snakegame
-        tft.drawText(80, 50, "NAKE");
-        tft.drawText(80, 80, "GAME");
-        tft.fillRectangle(55, 50, 75, 55, COLOR_GREENYELLOW);
-        tft.fillRectangle(55, 50, 60, 70, COLOR_GREENYELLOW);
-        tft.fillRectangle(55, 70, 75, 75, COLOR_GREENYELLOW);
-        tft.fillRectangle(70, 70, 75, 90, COLOR_GREENYELLOW);
-        tft.fillRectangle(55, 87, 75, 93, COLOR_GREENYELLOW);
-        tft.fillCircle(47, 91, 3, COLOR_RED);
-        tft.setFont(Terminal12x16);
-        tft.drawRectangle(50, 140, 125, 170, COLOR_LIGHTGRAY);
-        tft.drawText(65, 147, "PLAY", COLOR_TURQUOISE);
-        tft.setFont(Terminal6x8);
-        tft.drawText(47, 175, "press any key", COLOR_CYAN);
-        tft.drawText(62, 185, "to start", COLOR_CYAN);
-        delay(3000);
-        //เตรียมรับค่ากดจอย
-        int input = joyStickDecode();
-        delay(3000);
-        Serial.println(input);
-        if (input != stable)
+        switch (gameEngine.screenStage)
         {
-            Serial.println(input);
-            tft.clear();
-            gameEngine.mode = playGame;
+        case ardunoboyLogo:
+        {
+            tft.setFont(Terminal12x16);
+            tft.drawText(145, 55, "B", COLOR_YELLOW);
+            tft.drawText(144, 80, "O", COLOR_GREEN);
+            tft.drawText(25, 80, "A R D U I N", COLOR_TURQUOISE);
+            tft.drawText(145, 105, "Y", COLOR_RED);
+
+            gameEngine.screenStage = snakeGameLogo;
+            delay(3000);
+            break;
         }
-        //
-        // tft.drawText(40, 30, "GAMEOVER", COLOR_RED);
-        // tft.setFont(Terminal6x8);
-        // tft.drawText(70, 60, "SCORE", COLOR_TOMATO);
-        // tft.drawRectangle(50, 140, 130, 165, COLOR_LIGHTGRAY);
-        // tft.drawText(57, 150, "PLAY AGAIN", COLOR_TURQUOISE);
-        // tft.drawRectangle(50, 170, 130, 195, COLOR_LIGHTGRAY);
-        // tft.drawText(77, 180, "EXIT", COLOR_RED);
-        // while (true)
-        //     ;
+        case snakeGameLogo:
+        {
+            tft.clear();
+            //snakegame
+            tft.drawText(80, 50, "NAKE");
+            tft.drawText(80, 80, "GAME");
+            tft.fillRectangle(55, 50, 75, 55, COLOR_GREENYELLOW);
+            tft.fillRectangle(55, 50, 60, 70, COLOR_GREENYELLOW);
+            tft.fillRectangle(55, 70, 75, 75, COLOR_GREENYELLOW);
+            tft.fillRectangle(70, 70, 75, 90, COLOR_GREENYELLOW);
+            tft.fillRectangle(55, 87, 75, 93, COLOR_GREENYELLOW);
+            tft.fillCircle(47, 91, 3, COLOR_RED);
+            tft.setFont(Terminal12x16);
+            tft.drawRectangle(50, 140, 125, 170, COLOR_LIGHTGRAY);
+            tft.drawText(65, 147, "PLAY", COLOR_TURQUOISE);
+
+            gameEngine.screenStage = waitKeyPress;
+
+            break;
+        }
+        case waitKeyPress:
+        {
+
+            unsigned long currentMillis = millis();
+            if (currentMillis - previousMillis >= interval)
+            {
+
+                previousMillis = currentMillis;
+
+                if (blinkState)
+                {
+                    tft.setFont(Terminal6x8);
+                    tft.drawText(47, 175, "press any key", COLOR_CYAN);
+                    tft.drawText(62, 185, "to start", COLOR_CYAN);
+                    blinkState = !blinkState;
+                }
+                else
+                {
+                    tft.drawText(47, 175, "press any key", gameEngine.backgroundColor);
+                    tft.drawText(62, 185, "to start", gameEngine.backgroundColor);
+                    blinkState = !blinkState;
+                }
+            }
+
+            int input = joyStickDecode();
+            Serial.println(input);
+            if (input != stable)
+            {
+                Serial.println(input);
+                tft.clear();
+
+                gameEngine.mode = playGame;
+            }
+            break;
+        }
+
+        default:
+            break;
+        }
+
         break;
     }
     case playGame:
     {
-        head->nextDirection = readFromKeyboard();
+        head->nextDirection = joyStickDecode();
 
         if (head->nextDirection == stable)
         {
@@ -287,10 +330,16 @@ void loop()
 
         if (head->nextDirection != stable && head->nextDirection != 99)
         {
-            if (millis() >= time_now + period)
+            // if (millis() >= time_now + period)
+            // {
+            //     time_now += period;
+            // PRINT_NEW_LINE("Next Direction : " + String(head->nextDirection));
+            unsigned long currentMillis = millis();
+            if (currentMillis - time_now >= period)
             {
-                time_now += period;
-                // PRINT_NEW_LINE("Next Direction : " + String(head->nextDirection));
+
+                time_now = currentMillis;
+
                 deleteTail();
                 addHead();
 
@@ -314,16 +363,38 @@ void loop()
     }
     case gameOver:
     {
-        tft.clear();
-        tft.setBackgroundColor(COLOR_BLACK);
+
         initGameEngine();
+        gameEngine.mode = gameOver;
+
         initPlayer();
         initItem();
         initBarricade();
-        initJoyStick();
-        randomSeed(millis());
 
-        gameEngine.mode = playGame;
+        randomSeed(millis());
+        tft.setFont(Terminal12x16);
+        tft.drawText(40, 40, "GAMEOVER", COLOR_RED);
+        tft.setFont(Terminal6x8);
+        tft.drawText(70, 75, "SCORE", COLOR_TOMATO);
+        tft.setFont(Terminal12x16);
+        tft.drawText(76, 90, String(gameEngine.score), COLOR_WHITE);
+        tft.setFont(Terminal12x16);
+        tft.drawRectangle(50, 140, 130, 165, COLOR_LIGHTGRAY);
+        tft.drawText(68, 146, "EXIT", COLOR_RED);
+        tft.setFont(Terminal6x8);
+        tft.drawText(47, 175, "press any key", COLOR_SIENNA);
+        tft.drawText(65, 185, "to exit", COLOR_SIENNA);
+
+        int input = joyStickDecode();
+        Serial.println(input);
+        if (input != stable)
+        {
+            Serial.println(input);
+            tft.clear();
+            gameEngine.mode = startScreen;
+            gameEngine.screenStage = ardunoboyLogo;
+        }
+
         break;
     }
     default:
@@ -334,6 +405,7 @@ void loop()
 void initGameEngine()
 {
     gameEngine.mode = startScreen;
+    gameEngine.screenStage = ardunoboyLogo;
     gameEngine.border.topLeft.X = 0;
     gameEngine.border.topLeft.Y = 0;
     gameEngine.border.bottomRight.X = SCREEN_WIDTH;
@@ -372,7 +444,7 @@ void initItem()
     food.body.color = COLOR_RED;
     food.body.radius = 1;
     food.isSpawn = false;
-    food.score = 0;
+    food.score = 10;
     food.isFirstDraw = false;
 }
 
@@ -509,6 +581,8 @@ void isGameOver()
 {
     if (gameEngine.isHitBarricade || gameEngine.isHitBorder)
     {
+        tft.clear();
+        tft.setBackgroundColor(COLOR_BLACK);
         gameEngine.mode = gameOver;
     }
 }
