@@ -5,11 +5,11 @@
     <img src="https://raw.githubusercontent.com/othneildrew/Best-README-Template/master/images/logo.png" alt="Logo" width="80" height="80">
   </a>
 
-  <h3 align="center">ArduinoBoy
+  <h3 align="center">ArduinoBoy 🎮
 </h3>
 
   <p align="center">
-   enjoy with ArduinoBoy :)
+  let's enjoy :)
     <br />
     <a href="https://www.youtube.com/watch?v=eQNCPSPgyeM&list=LLOwSX5axlQ6ORKyyI-jCeLQ&index=2&t=10s"><strong>View Demonstrate Video »</strong></a>
     <br />
@@ -24,7 +24,7 @@
 
 <!-- TABLE OF CONTENTS -->
 
-## Table of Contents
+## Table of Contents 📑
 
 - [About the Project](#about-the-project)
   - [Abstract](#Abstract)
@@ -38,7 +38,7 @@
 
 <!-- ABOUT THE PROJECT -->
 
-# About The Project
+# About The Project 📄
 
 [![Poster][poster]](https://raw.githubusercontent.com/pspapleng/GoodDeal-Project/master/img/1576522078513.jpg)
 
@@ -60,7 +60,7 @@ Keywords : เครื่องเล่นเกม, เกมบอย, ardui
 
 <!-- Equipment -->
 
-# Equipment
+# Equipment 🛠️
 
 - Arduino UNO+WiFi R3 ATmega328P+ESP8266 (32Mb memory)
   เป็นบอร์ด Arduino UNO รุ่นใหม่ที่มีการรวม Wi-Fi Module เข้าไปบนบอร์ด โดยใช้ MCU เป็น ATmega328P และใช้ชิป Wi-Fi เป็น ESP8266 จาก Espressif
@@ -78,7 +78,7 @@ Keywords : เครื่องเล่นเกม, เกมบอย, ardui
 
 <!-- Features -->
 
-# Features
+# Features 🔎
 
 - มีการสุ่มกำแพงขึ้นมาพร้อมกับอาหาร เมื่องูกินอาหารแล้วกำแพงอันนั้นจะเปลี่ยนเป็นอาหารแทนแล้วทำการสุ่มกำแพงใหม่ขึ้นมา
 - สามารถบังคับทิศทางของงูได้โดยใช้จอยสติ้ก
@@ -87,17 +87,17 @@ Keywords : เครื่องเล่นเกม, เกมบอย, ardui
 
 <!-- Flowchart -->
 
-# Flowchart
+# Flowchart ⚡
 
 <!-- Link youtube -->
 
-# Demonstrate Video
+# Demonstrate Video 📹
 
 - [ArduinoBoy](https://www.youtube.com/watch?v=3QBNH6m6Ctc&feature=youtu.be)
 
 <!-- CONTACT -->
 
-## Contact
+## Contact 📍
 
 62070029 นางสาว จิตติภรณ์ จักรวิวัฒนากุล - [@DevJubjang](https://github.com/DevJubjang)
 
