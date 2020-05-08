@@ -11,7 +11,7 @@
   <p align="center">
   let's enjoy 🎮
     <br />
-    <a href="https://www.youtube.com/watch?v=eQNCPSPgyeM&list=LLOwSX5axlQ6ORKyyI-jCeLQ&index=2&t=10s"><strong>View Demonstrate Video »</strong></a>
+    <a href="https://www.youtube.com/watch?v=30pQbPnYK-c&feature=youtu.be"><strong>View Demonstrate Video »</strong></a>
     <br />
     <br />
     <a href="https://github.com/pspapleng/AKA-gameboy">Explore The Doc</a>
@@ -95,7 +95,7 @@ Keywords : เครื่องเล่นเกม;เกมงู;microcontr
 
 # Demonstrate Video
 
-- [AKA ‘gameboy’](https://www.youtube.com/watch?v=3QBNH6m6Ctc&feature=youtu.be)
+- [AKA ‘gameboy’](https://www.youtube.com/watch?v=30pQbPnYK-c&feature=youtu.be)
 
 <!-- CONTACT -->
 
