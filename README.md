@@ -40,7 +40,7 @@
 
 # About The Project
 
-[![Poster][poster]]()
+[![Poster][poster]](https://github.com/pspapleng/AKA-gameboy/blob/master/picture/AKA.jpg)
 
 ### Abstract
 
@@ -65,7 +65,7 @@ Keywords : เครื่องเล่นเกม;เกมงู;microcontr
 
 - ชุดพัฒนาไมโครคอนโทรลเลอร์ ESP32 ที่มี WiFi และ บลูทูธกำลังงานต่อ หรือ BLE ในตัว มาพร้อมกับจอแสดงผล TFT LCD ขนาด 2 นิ้ว ความละเอียด 320 x 240 พิกเซล บรรจุลงในกล่องขนาด 5 x 5 เซนติเมตรที่มีฐานกล่องเป็นแม่เหล็ก มีลำโพง ปุ่มกด และแบตเตอรี่แบบประจุได้รวมถึงวงจรประจุแบตเตอรี่มาพร้อมใช้งาน
 
-[![m5stack][m5stack]]()
+[![m5stack][m5stack]](https://github.com/pspapleng/AKA-gameboy/blob/master/picture/m5stack-gray.jpg)
 
 คุณสมบัติทางเทคนิค
 
@@ -89,7 +89,7 @@ Keywords : เครื่องเล่นเกม;เกมงู;microcontr
 
 # Flowchart
 
-[![Flowchart][flowchart]]()
+[![Flowchart][flowchart]](https://github.com/pspapleng/AKA-gameboy/blob/master/picture/Untitled%20Diagram%20(1).jpg)
 
 <!-- Link youtube -->
 
@@ -114,6 +114,6 @@ Keywords : เครื่องเล่นเกม;เกมงู;microcontr
 <!-- MARKDOWN LINKS & IMAGES -->
 <!-- https://www.markdownguide.org/basic-syntax/#reference-style-links -->
 
-[poster]:
-[m5stack]:
-[flowchart]:
+[poster]:https://github.com/pspapleng/AKA-gameboy/blob/master/picture/AKA.jpg
+[m5stack]:https://github.com/pspapleng/AKA-gameboy/blob/master/picture/m5stack-gray.jpg
+[flowchart]:https://github.com/pspapleng/AKA-gameboy/blob/master/picture/Untitled%20Diagram%20(1).jpg
