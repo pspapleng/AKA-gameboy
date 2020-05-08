@@ -5,11 +5,11 @@
     <img src="https://raw.githubusercontent.com/othneildrew/Best-README-Template/master/images/logo.png" alt="Logo" width="80" height="80">
   </a>
 
-  <h3 align="center">AKA ‘gameboy’ 🎮
+  <h3 align="center">AKA ‘gameboy’
 </h3>
 
   <p align="center">
-  let's enjoy :)
+  let's enjoy 🎮
     <br />
     <a href="https://www.youtube.com/watch?v=eQNCPSPgyeM&list=LLOwSX5axlQ6ORKyyI-jCeLQ&index=2&t=10s"><strong>View Demonstrate Video »</strong></a>
     <br />
